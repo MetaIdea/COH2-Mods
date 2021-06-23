@@ -1,0 +1,36 @@
+function Init_Mod()
+	EvaluateOptions()
+	if debugmode then
+		FOW_RevealAll()
+	end
+	ShowMessage("Mod Init", 20)
+end
+
+
+CURRENT_ZONE_RADIUS = 1000
+
+function InsideZoneCheck(team) --unused
+	for i = 1,World_GetPlayerCount(),1 do
+		local player = World_GetPlayerAt(i)
+		local insideZone = false
+		if team == Player_GetTeam(player) then
+			local entities = Player_GetEntities(player)
+			for entityCount = 1, EGroup_CountSpawned(entities) do
+				local entity = EGroup_GetSpawnedEntityAt(entities, entityCount)
+				if Util_GetPosition(entity) < CURRENT_ZONE_RADIUS then
+				--Team_GetAllSquadsNearMarker( TeamID team, SGroupID sgroup, MarkerID/Pos/SectorID position[, Real range] ) 
+				--Team_GetAllEntitiesNearMarker( TeamID team, EGroupID egroup, MarkerID/Pos/SectorID position[, Real range] ) 
+				--Prox_ArePlayerMembersNearMarker( PlayerID player, MarkerID/Position/SectorID position, Boolean all[, Real range, SBP/Table filterlist, Integer filtertype] ) 
+				--Prox_AreTeamsNearMarker( TeamID team, MarkerID/Position/SectorID position, Boolean all[, Real range, SBP/Table filterlist, Integer filtertype] ) 
+					insideZone = true
+				end
+			end
+			if not insideZone then
+				
+			end
+		end
+	end
+	return false
+end
+
+Scar_AddInit(Init_Mod)
