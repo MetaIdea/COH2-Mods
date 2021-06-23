@@ -1,0 +1,9 @@
+name = "lua_live_loader"
+scar_file = "data:scar/WinConditions/lua_live_loader.scar"
+fe_name = " Scar/Lua Live Loader"
+fe_priority = 0
+score_display = none
+show_time = false
+requires_vp_ticker = false
+entity_replacements =
+{{original = "victory_point",replacement = "territory_point_mp",}}

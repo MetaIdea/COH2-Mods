@@ -1,0 +1,168 @@
+import("ScarUtil.scar")
+import("Fatalities/Fatalities.scar")
+import("Prototype/WorldEntityCollector.scar")
+import("Prototype/VPTickerWin-Annihilate_Functions.scar")
+import("Prototype/SpecialAEFunctions.scar")
+import("PrintOnScreen.scar")
+import("WinConditions/Annihilate.scar")
+SetGlobals()
+Scar_AddInit(VPTicker_OnInit)
+
+--------------------MOD--------------------
+
+AI_STATE = true
+ENEMY_AI_STATE = true
+ALLIED_AI_STATE = true
+
+AI_TYPE = { AII_LocalHumanTakeover, AII_None, AII_Normal, AII_RemoteAITakeover, AII_RemoteHumanTakeover }
+AI_DIFFICULTY = { AD_Easy, AD_Standard, AD_Hard, AD_Hardest }
+AI_PERSONALITY = { "default", "default_skirmish" }
+
+function AIToggle()
+	if AI_STATE then
+		for i = 1, World_GetPlayerCount() do
+			local player = World_GetPlayerAt(i)
+			if AI_IsAIPlayer(player) then
+				AI_Enable(player, false)
+			end
+		end
+		AI_STATE = false
+		Msg("AI OFF", 3)
+	else
+		for i = 1, World_GetPlayerCount() do
+			local player = World_GetPlayerAt(i)
+			if AI_IsAIPlayer(player) then
+				AI_Enable(player, true)
+			end
+		end
+		AI_STATE = true
+		Msg("AI ON", 3)
+	end
+end
+
+function Init_Mod()
+	UI_PanelAdd("", "dialog", 4, 60)
+	UI_ButtonAdd("", "button", 0, 64, 40, 40, "AIToggle", true, "Icons_events_event_cue_upgrade", BIS_Icon, "AI Toggle", Loc_Empty())
+	EvaluateOptions()
+end
+
+--OPTIONS PARSING--
+function GetOptionsString()
+	--only for creation: local Setup_GetVictoryPointTickerOption() = function() return 1 end
+	modOption 		= {"", "zoom", "map revealed"}
+	popCaps 		= {"standard", "125", "150", "200"}
+	victoryPoints 	= {"250", "500", "1000"}
+	local shiftVal 	= 0
+	if tonumber(string.match(Setup_GetWinConditionOption(),"%d+")) >= 250 then
+		optionIndex 	= 250
+		gamemodes 		= {"victory points"}
+	else
+		optionIndex 	= 1	
+		gamemodes 		= {"annihilation"}	--, "victory points", "none"}
+	end
+	optionsString = "options = {"
+	for m=1,#modOption,1 do
+		for i=1,#gamemodes,1 do
+			for j=1,#popCaps,1 do
+				if not (gamemodes[i] == "victory points") then
+					if gamemodes[i] == "annihilation" and popCaps[j] == "standard" then
+						if modOption[m] == "" then
+							optionsString = optionsString .. "\n\t{\n\t\tdefault = true,\n\t\tfe_name = '" .. "',\n\t\tvalue = " .. optionIndex .. ",\n\t},"
+						else
+							optionsString = optionsString .. "\n\t{\n\t\tfe_name = '" .. "-popcap:" .. popCaps[j] .. "-option:" .. modOption[m] .. "',\n\t\tvalue = " .. optionIndex .. ",\n\t},"	
+						end
+					else
+						if modOption[m] == "" then
+							optionsString = optionsString .. "\n\t{\n\t\tfe_name = '" .. "-popcap:" .. popCaps[j] .. "',\n\t\tvalue = " .. optionIndex .. ",\n\t},"	
+						else
+							optionsString = optionsString .. "\n\t{\n\t\tfe_name = '" .. "-popcap:" .. popCaps[j] .. "-option:" .. modOption[m] .. "',\n\t\tvalue = " .. optionIndex .. ",\n\t},"	
+						end
+					end
+					optionIndex = optionIndex + 1
+				else
+					for k=1,#victoryPoints,1 do
+						optionIndex = victoryPoints[k] + shiftVal
+						if modOption[m] == "" then
+							optionsString = optionsString .. "\n\t{\n\t\tfe_name = '" .. "-vp:" .. victoryPoints[k] .. "-popcap:" .. popCaps[j] .. "',\n\t\tvalue = " .. optionIndex .. ",\n\t},"	
+						else
+							optionsString = optionsString .. "\n\t{\n\t\tfe_name = '" .. "-vp:" .. victoryPoints[k] .. "-popcap:" .. popCaps[j] .. "-option:" .. modOption[m] .. "',\n\t\tvalue = " .. optionIndex .. ",\n\t},"	
+						end
+						if optionIndex >= 1000 then
+							shiftVal = shiftVal + 1
+						end
+					end
+				end
+			end		
+		end
+	end
+	optionsString = optionsString .. "\n}"
+	optionsString = string.gsub(optionsString,"-popcap:standard","")
+	return optionsString
+end
+--print(GetOptionsString())
+
+function EvaluateOptions()
+	loadstring(GetOptionsString())()
+	g_winconditionOption = Setup_GetWinConditionOption()
+	local fe_name = ""
+	for i=1,#options,1 do
+		if tonumber(options[i].value) == tonumber(string.match(g_winconditionOption,"%d+")) then --string.find(g_winconditionOption, string.gsub(tostring(options[i].value),".0","")) 
+			fe_name = options[i]["fe_name"]
+			break
+		end
+	end
+	
+	if string.find(fe_name, "popcap:") then
+		local popCap = tonumber(string.match(string.sub(fe_name, string.find(fe_name, "popcap:"), string.len(fe_name)),"%d+")) or 100
+		for i = 1,World_GetPlayerCount(),1 do
+			local player = World_GetPlayerAt(i)
+			Player_SetPopCapOverride(player, popCap)	
+		end
+	end
+	if string.find(fe_name, "zoom") then
+		--Camera_SetDefault(300)
+		Camera_SetTuningValue(TV_DistMin, 1)
+		Camera_SetTuningValue(TV_DistMax, 75)
+	end
+	if string.find(fe_name, "map revealed") then
+		FOW_RevealAll()
+	end
+	
+	-- if string.find(fe_name, "annihilation") then
+		-- --score_display = time
+		-- --requires_vp_ticker = false
+		-- --entity_replacements = {{original = "victory_point", replacement = "territory_point_mp",}}
+		-- --import("WinConditions/annihilate.scar")
+	-- elseif string.find(fe_name, "none") then
+		-- --import("WinConditions/none.scar")
+	-- elseif string.find(fe_name, "victory points") then
+		-- g_victoryPoints = 500
+		-- victoryPoints = tonumber(string.match(string.sub(fe_name, string.find(fe_name, "vp:"), string.len(fe_name)),"%d+")) or 500
+		-- --score_display = vp_ticker
+		-- --requires_vp_ticker = true
+		-- --VPTickerData.start_points = victoryPoints
+		-- --start_points = victoryPoints
+		-- --_G["Setup_GetWinConditionOption"] = function() return g_victoryPoints end
+		-- --import("WinConditions/victorypointplusannihilate.scar")
+	-- end
+end
+
+--HELPER--
+function Msg(text, displayTime)
+	if not displayTime then displayTime = 10 end
+	-- if not text or text == "" then
+		-- text = Util_CreateLocString("")
+	-- elseif scartype(text) == ST_STRING then
+		-- text = Util_CreateLocString(text)
+	-- end
+	Game_TextTitleFade(text, 0, displayTime, 0)
+end
+
+logtextall = ""
+function Log(logtext)
+	logtextall = logtextall .. logtext .. "\n"
+	PersistentMode_SerializeResults("userdata:" .. live_log_file, tostring(logtextall))
+end
+--
+
+Scar_AddInit(Init_Mod)

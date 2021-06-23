@@ -1,0 +1,64 @@
+name = "autopilot_ai_toggle_annihilation"
+scar_file = "data:scar/winconditions/autopilot_ai_toggle_annihilation.scar"
+fe_name = " Autopilot AI Toggle (annihilation)"
+fe_priority = 0
+show_time = true
+requires_vp_ticker = false
+score_display = time
+entity_replacements = {{original = "victory_point", replacement = "territory_point_mp",}}
+fe_option_name = "Option"
+
+options = {
+	{
+		default = true,
+		fe_name = '',
+		value = 1,
+	},
+	{
+		fe_name = '-popcap:125',
+		value = 2,
+	},
+	{
+		fe_name = '-popcap:150',
+		value = 3,
+	},
+	{
+		fe_name = '-popcap:200',
+		value = 4,
+	},
+	{
+		fe_name = '-option:zoom',
+		value = 5,
+	},
+	{
+		fe_name = '-popcap:125-option:zoom',
+		value = 6,
+	},
+	{
+		fe_name = '-popcap:150-option:zoom',
+		value = 7,
+	},
+	{
+		fe_name = '-popcap:200-option:zoom',
+		value = 8,
+	},
+	{
+		fe_name = '-option:map revealed',
+		value = 9,
+	},
+	{
+		fe_name = '-popcap:125-option:map revealed',
+		value = 10,
+	},
+	{
+		fe_name = '-popcap:150-option:map revealed',
+		value = 11,
+	},
+	{
+		fe_name = '-popcap:200-option:map revealed',
+		value = 12,
+	},
+}
+
+
+

@@ -1,0 +1,155 @@
+name = "autopilot_ai_toggle_victory_point"
+scar_file = "data:scar/winconditions/autopilot_ai_toggle_victorypointplusannihilate.scar"
+fe_name = " Autopilot AI Toggle (victory point)"
+fe_priority = 0
+score_display = vp_ticker
+show_time = true
+requires_vp_ticker = true
+fe_option_name = "Option"
+
+options = {
+	{
+		fe_name = '-vp:250',
+		value = 250.0,
+	},
+	{
+		fe_name = '-vp:500',
+		value = 500.0,
+	},
+	{
+		fe_name = '-vp:1000',
+		value = 1000.0,
+	},
+	{
+		fe_name = '-vp:250-popcap:125',
+		value = 251.0,
+	},
+	{
+		fe_name = '-vp:500-popcap:125',
+		value = 501.0,
+	},
+	{
+		fe_name = '-vp:1000-popcap:125',
+		value = 1001.0,
+	},
+	{
+		fe_name = '-vp:250-popcap:150',
+		value = 252.0,
+	},
+	{
+		fe_name = '-vp:500-popcap:150',
+		value = 502.0,
+	},
+	{
+		fe_name = '-vp:1000-popcap:150',
+		value = 1002.0,
+	},
+	{
+		fe_name = '-vp:250-popcap:200',
+		value = 253.0,
+	},
+	{
+		fe_name = '-vp:500-popcap:200',
+		value = 503.0,
+	},
+	{
+		fe_name = '-vp:1000-popcap:200',
+		value = 1003.0,
+	},
+	{
+		fe_name = '-vp:250-option:zoom',
+		value = 254.0,
+	},
+	{
+		fe_name = '-vp:500-option:zoom',
+		value = 504.0,
+	},
+	{
+		fe_name = '-vp:1000-option:zoom',
+		value = 1004.0,
+	},
+	{
+		fe_name = '-vp:250-popcap:125-option:zoom',
+		value = 255.0,
+	},
+	{
+		fe_name = '-vp:500-popcap:125-option:zoom',
+		value = 505.0,
+	},
+	{
+		fe_name = '-vp:1000-popcap:125-option:zoom',
+		value = 1005.0,
+	},
+	{
+		fe_name = '-vp:250-popcap:150-option:zoom',
+		value = 256.0,
+	},
+	{
+		fe_name = '-vp:500-popcap:150-option:zoom',
+		value = 506.0,
+	},
+	{
+		fe_name = '-vp:1000-popcap:150-option:zoom',
+		value = 1006.0,
+	},
+	{
+		fe_name = '-vp:250-popcap:200-option:zoom',
+		value = 257.0,
+	},
+	{
+		fe_name = '-vp:500-popcap:200-option:zoom',
+		value = 507.0,
+	},
+	{
+		fe_name = '-vp:1000-popcap:200-option:zoom',
+		value = 1007.0,
+	},
+	{
+		fe_name = '-vp:250-option:map revealed',
+		value = 258.0,
+	},
+	{
+		fe_name = '-vp:500-option:map revealed',
+		value = 508.0,
+	},
+	{
+		fe_name = '-vp:1000-option:map revealed',
+		value = 1008.0,
+	},
+	{
+		fe_name = '-vp:250-popcap:125-option:map revealed',
+		value = 259.0,
+	},
+	{
+		fe_name = '-vp:500-popcap:125-option:map revealed',
+		value = 509.0,
+	},
+	{
+		fe_name = '-vp:1000-popcap:125-option:map revealed',
+		value = 1009.0,
+	},
+	{
+		fe_name = '-vp:250-popcap:150-option:map revealed',
+		value = 260.0,
+	},
+	{
+		fe_name = '-vp:500-popcap:150-option:map revealed',
+		value = 510.0,
+	},
+	{
+		fe_name = '-vp:1000-popcap:150-option:map revealed',
+		value = 1010.0,
+	},
+	{
+		fe_name = '-vp:250-popcap:200-option:map revealed',
+		value = 261.0,
+	},
+	{
+		fe_name = '-vp:500-popcap:200-option:map revealed',
+		value = 511.0,
+	},
+	{
+		fe_name = '-vp:1000-popcap:200-option:map revealed',
+		value = 1011.0,
+	},
+}

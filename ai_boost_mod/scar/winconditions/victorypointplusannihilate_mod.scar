@@ -1,0 +1,386 @@
+import("ScarUtil.scar")
+import("Fatalities/Fatalities.scar")
+import("Prototype/WorldEntityCollector.scar")
+import("Prototype/VPTickerWin-Annihilate_Functions.scar")
+import("Prototype/SpecialAEFunctions.scar")
+import("PrintOnScreen.scar")
+import("WinConditions/Annihilate.scar")
+SetGlobals()
+Scar_AddInit(VPTicker_OnInit)
+
+--MOD--
+
+g_AutoEnable_Pop_Threeshold = 0.8
+
+g_AI_BOOST_ADAPTIVE = false
+g_AI_BOOST_PopLoss_Threeshold = 0.4
+
+function Init_Mod()
+	EvaluateOptions()
+	Init_AIBoost()
+end
+
+--GET HOST PLAYER - thanks to Jane252 for help getting the host player--
+
+playerHost = nil
+__resolveHostCallback = nil
+
+function Util_ResolveGameHost(callback)
+	__resolveHostCallback = callback
+    Rule_AddGlobalEvent(__resolveGameHost_BroadcastMessageReceived, GE_BroadcastMessage)
+    Command_PlayerBroadcastMessage(Game_GetLocalPlayer(), Game_GetLocalPlayer(), 7777777, "resolveGameHost")
+end
+
+function __resolveGameHost_BroadcastMessageReceived(player, command, data)
+    if (command == 7777777 and data == "resolveGameHost") then
+        if not playerHost then 
+			playerHost = player 
+		end
+        Rule_RemoveGlobalEvent(__resolveGameHost_BroadcastMessageReceived)
+		__resolveHostCallback()
+    end
+end
+
+--SYNC HOST/POLL BUTTON CALLBACK--
+
+MESSAGE_TYPE_CALLBACK_AI_BOOST_HOST = 88888888
+MESSAGE_TYPE_CALLBACK_AI_BOOST_POLL = 99999999
+
+function messageCallback(player, messageType, message)
+    if messageType == MESSAGE_TYPE_CALLBACK_AI_BOOST_HOST then
+		TriggerAIBoost()
+    elseif messageType == MESSAGE_TYPE_CALLBACK_AI_BOOST_POLL then
+		PollChecker(player)
+	end
+end
+
+Rule_AddGlobalEvent(messageCallback, GE_BroadcastMessage)
+
+-- AI BOOST CODE--
+
+function GetFirstHumanPlayersEnemyTeam()
+	for i = 1,World_GetPlayerCount(),1 do
+		local player = World_GetPlayerAt(i)
+		if Player_IsHuman(player) then
+			local team = Player_GetTeam(player)
+			return Team_GetEnemyTeam(team)	
+		end
+	end
+end
+
+function GetFirstHumanPlayerTeam()
+	for i = 1,World_GetPlayerCount(),1 do
+		local player = World_GetPlayerAt(i)
+		if Player_IsHuman(player) then
+			return Player_GetTeam(player)
+		end
+	end
+end
+
+function GetHumanPlayerCount()
+	local humanPlayerCount = 0
+	local team  = GetFirstHumanPlayerTeam()
+	for i = 1,World_GetPlayerCount(),1 do
+		local player = World_GetPlayerAt(i)
+		if Player_IsHuman(player) and Player_GetTeam(player) == team then
+			humanPlayerCount = humanPlayerCount + 1
+		end
+	end
+	return humanPlayerCount
+end
+
+AI_BOOST_NOW_ACTIVE = false
+AI_BOOST_DIIFICULTY_SHIFT_PLAYER = {}
+
+AI_Difficulty_Type = {AD_Easy, AD_Standard, AD_Hard, AD_Hardest}
+
+function Boost_AI(scalar)
+	if not scalar then scalar = 1.0 end
+	local enemyTeam = GetFirstHumanPlayersEnemyTeam()
+	for i = 1,World_GetPlayerCount(),1 do
+		local player = World_GetPlayerAt(i)
+		if Player_GetTeam(player) == enemyTeam and AI_IsAIPlayer(player) then
+			if AI_GetDifficulty(player) == AD_Hardest then
+				--local playerId = Player_GetID(player)
+				Modify_PlayerProductionRate(player, 3.0 * scalar)
+				Modify_PlayerResourceRate(player, RT_Manpower, 1.5 * scalar)
+				Modify_PlayerResourceRate(player, RT_Munition, 1.5 * scalar)
+				Modify_PlayerResourceRate(player, RT_Fuel, 1.5 * scalar)
+				--Modify_PlayerExperienceReceived(player, 1.5 * scalar)
+				--Player_SetPopCapOverride(player, 100 * scalar)
+				Player_AddResource(player, RT_Manpower, 2500 * scalar)		
+				Player_AddResource(player, RT_Munition, 500 * scalar)	
+				Player_AddResource(player, RT_Fuel, 1000 * scalar)
+				--Modify_PlayerSightRadius(player, 100.00)
+			else
+				for i=1,#AI_Difficulty_Type,1 do
+					if AI_GetDifficulty(player) == AI_Difficulty_Type[i] then
+						AI_SetDifficulty(player, AI_Difficulty_Type[i+1])
+						--table.insert(AI_BOOST_DIIFICULTY_SHIFT_PLAYER, player)
+						break
+					end
+				end
+			end
+		end
+	end
+	AI_BOOST_NOW_ACTIVE = true
+end
+
+function Boost_AI_DISABLE()
+	if AI_BOOST_NOW_ACTIVE then
+		local enemyTeam = GetFirstHumanPlayersEnemyTeam()
+		for i = 1,World_GetPlayerCount(),1 do
+			local player = World_GetPlayerAt(i)
+			if Player_GetTeam(player) == enemyTeam and AI_IsAIPlayer(player) then
+				Modify_PlayerProductionRate(player, 1.0)
+				Modify_PlayerResourceRate(player, RT_Manpower, 1.0)
+				Modify_PlayerResourceRate(player, RT_Munition, 1.0)
+				Modify_PlayerResourceRate(player, RT_Fuel, 1.0)
+				Modify_PlayerExperienceReceived(player, 1.0)
+				Player_SetPopCapOverride(player, 100)
+			end
+		end
+		AI_BOOST_NOW_ACTIVE = false
+	end
+end
+
+function TriggerAIBoost()
+	--UI_SystemMessageShow("Button pressed")
+	UI_ButtonSetEnabled("", false)
+	Boost_AI()
+	Game_TextTitleFade("AI BOOST NOW ACTIVE !", 0, 5, 2)	
+	print("AI Boost now active !")
+end
+
+-- AUTO ENBALE MODE--
+
+function GetAveragePopulationPercentage(team)
+	local playerCount = 0
+	local popPercentage = 0
+	for i = 1,World_GetPlayerCount(),1 do
+		local player = World_GetPlayerAt(i)
+		if Player_GetTeam(player) == team then
+			playerCount = playerCount + 1
+			popPercentage = popPercentage + Player_GetPopulationPercentage(player)
+		end
+	end
+	popPercentage = popPercentage / playerCount
+	return popPercentage
+end
+
+function AutoEnabler()
+	if GetAveragePopulationPercentage(GetFirstHumanPlayerTeam()) > g_AutoEnable_Pop_Threeshold then
+		Rule_Remove(AutoEnabler) 
+		TriggerAIBoost()
+	end
+end
+
+--POLL MODE--
+
+humanPlayerCount = 0
+pollCount = 0
+localPlayerVoted = false
+
+function InitPollMode()
+	AddPollButton()
+	humanPlayerCount = GetHumanPlayerCount()
+	Game_TextTitleFade("AI Boost Mode info: \n" .. humanPlayerCount .. " votes required.", 0, 5, 2)
+end
+
+function AddPollButton()
+	UI_PanelAdd("", "dialog", 4, 60)
+	UI_ButtonAdd("", "button", 0, 64, 40, 40, "pollButtonCallback", true, "Icons_events_event_cue_upgrade", BIS_Icon, "aiboost", Loc_Empty())
+end
+
+function pollButtonCallback(tag)
+	if AI_BOOST_NOW_ACTIVE or localPlayerVoted then return end
+	Command_PlayerBroadcastMessage(Game_GetLocalPlayer(), Game_GetLocalPlayer(), MESSAGE_TYPE_CALLBACK_AI_BOOST_POLL, tag)
+	localPlayerVoted = true
+end
+
+function PollChecker(player)
+	pollCount = pollCount + 1
+	if pollCount >= humanPlayerCount then
+		TriggerAIBoost()
+	else
+		Game_TextTitleFade("AI Boost Mode info: " .. Player_GetDisplayName(player)[1] .. " voted\n" .. pollCount - humanPlayerCount .. " more votes required !", 0, 5, 2)
+	end
+end
+
+--HOST MODE--
+
+function AddHostButton()
+	if playerHost and Player_GetID(Game_GetLocalPlayer()) == Player_GetID(playerHost) then
+		UI_PanelAdd("", "dialog", 4, 60)
+		UI_ButtonAdd("", "button", 0, 64, 40, 40, "hostButtonCallback", true, "Icons_events_event_cue_upgrade", BIS_Icon, "aiboost", Loc_Empty())
+	end
+end
+
+function hostButtonCallback(tag)
+	if AI_BOOST_NOW_ACTIVE then return end
+    Command_PlayerBroadcastMessage(Game_GetLocalPlayer(), Game_GetLocalPlayer(), MESSAGE_TYPE_CALLBACK_AI_BOOST_HOST, tag)
+end
+
+--currently unused, unfinished--
+
+function AdaptiveAIBoost_Coroutine()
+	if AI_BOOST_NOW_ACTIVE then
+		if CheckTeamPopulationPercentageLoss() < g_AI_BOOST_PopLoss_Threshold then
+			Boost_AI_DISABLE()
+			Rule_Remove(AdaptiveAIBoost_Coroutine)
+		end
+	end	
+end
+
+PopTable = {}
+
+function CheckTeamPopulationPercentageLoss()
+	team = GetFirstHumanPlayerTeam()
+	for i = 1,World_GetPlayerCount(),1 do
+		local player = World_GetPlayerAt(i)
+		if Player_GetTeam(player) == team then
+			if not PopTable[player] then
+				PopTable[player] = {}
+				PopTable[player]["now"] = Player_GetCurrentPopulation(player, CT_Personnel) + Player_GetCurrentPopulation(player, CT_Vehicle) 
+				PopTable[player]["last"] = PopTable[player]["now"]
+			else
+				PopTable[player]["last"] = PopTable[player]["now"]
+				PopTable[player]["now"] =  Player_GetCurrentPopulation(player, CT_Personnel) + Player_GetCurrentPopulation(player, CT_Vehicle)
+			end
+		end
+	end
+	local PopLoss = 0
+	for i = 1,World_GetPlayerCount(),1 do
+		local player = World_GetPlayerAt(i)
+		if Player_GetTeam(player) == team then
+			PopLoss = PopLoss + (1-(PopTable[player]["now"]/PopTable[player]["last"]))
+		end
+	end
+	return PopLoss/#PopTable
+end
+
+--INIT--
+
+g_AutoEnable = false
+g_PollEnable = false
+g_HostButtonEnable = false	
+
+function Init_AIBoost()
+	if g_HostButtonEnable then
+		Util_ResolveGameHost(AddHostButton)
+		AddHostButton()
+	end
+	if g_AutoEnable then
+		Rule_AddInterval(AutoEnabler, 3)
+	end
+	if g_PollEnable then
+		InitPollMode()
+	end
+	if g_AI_BOOST_ADAPTIVE then 
+		--if the average population loss of your team is greater than 40% within 3 minutes ai boost gets disabled
+		Rule_AddInterval(AdaptiveAIBoost_Coroutine, 180)
+	end
+end
+
+--OPTIONS--
+function GetOptionsString()
+	modOption 		= {"host", "vote", "auto"}
+	popCaps 		= {"standard", "125", "150", "200"}
+	victoryPoints 	= {"250", "500", "1000"}
+	local shiftVal 	= 0
+	if tonumber(string.match(Setup_GetWinConditionOption(),"%d+")) >= 250 then
+		optionIndex 	= 250
+		gamemodes 		= {"victory points"}
+	else
+		optionIndex 	= 1	
+		gamemodes 		= {"annihilation"}--, "victory points", "none"}
+	end
+	optionsString = "options = {"
+	for m=1,#modOption,1 do
+		if modOption[m] ~= "" then
+			modOption[m] = modOption[m] .. "-"
+		end
+		for i=1,#gamemodes,1 do
+			for j=1,#popCaps,1 do
+				if not (gamemodes[i] == "victory points") then
+					if gamemodes[i] == "annihilation" and popCaps[j] == "standard" then
+						optionsString = optionsString .. "\n\t{\n\t\tdefault = true,\n\t\tfe_name = '" .. modOption[m] .. "',\n\t\tvalue = " .. optionIndex .. ",\n\t},"
+					else
+						optionsString = optionsString .. "\n\t{\n\t\tfe_name = '" .. modOption[m] .. "-popcap:" .. popCaps[j] .. "',\n\t\tvalue = " .. optionIndex .. ",\n\t},"	
+					end
+					optionIndex = optionIndex + 1
+				else
+					for k=1,#victoryPoints,1 do
+						optionIndex = victoryPoints[k] + shiftVal
+						optionsString = optionsString .. "\n\t{\n\t\tfe_name = '" .. modOption[m] .. "-vp:" .. victoryPoints[k] .. "-popcap:" .. popCaps[j] .. "',\n\t\tvalue = " .. optionIndex .. ",\n\t},"	
+						if optionIndex >= 1000 then
+							shiftVal = shiftVal + 1
+						end
+					end
+				end
+			end		
+		end
+	end
+	optionsString = optionsString .. "\n}"
+	optionsString = string.gsub(optionsString,"-popcap:standard","")
+	return optionsString
+end
+--print(GetOptionsString())
+
+function EvaluateOptions()
+	loadstring(GetOptionsString())()
+	g_winconditionOption = Setup_GetWinConditionOption()
+	local fe_name = ""
+	for i=1,#options,1 do
+		if tonumber(options[i].value) == tonumber(string.match(g_winconditionOption,"%d+")) then --string.find(g_winconditionOption, string.gsub(tostring(options[i].value),".0","")) 
+			fe_name = options[i]["fe_name"]
+			break
+		end
+	end
+	
+	Game_TextTitleFade(fe_name, 0, 20, 2)
+	
+	if string.find(fe_name, "popcap:") then
+		local popCap = tonumber(string.match(string.sub(fe_name, string.find(fe_name, "popcap:"), string.len(fe_name)),"%d+")) or 100
+		for i = 1,World_GetPlayerCount(),1 do
+			local player = World_GetPlayerAt(i)
+			Player_SetPopCapOverride(player, popCap)	
+		end
+	end
+	if string.find(fe_name, "zoom") then
+		--Camera_SetDefault(300)
+		Camera_SetTuningValue(TV_DistMin, 1)
+		Camera_SetTuningValue(TV_DistMax, 75)
+	end
+	if string.find(fe_name, "map revealed") then
+		FOW_RevealAll()
+	end
+
+	if string.find(fe_name, "auto") then
+		g_AutoEnable = true
+	elseif string.find(fe_name, "host") then
+		g_HostButtonEnable = true	
+	elseif string.find(fe_name, "vote") then
+		g_PollEnable = true	
+	end
+	
+	-- if string.find(fe_name, "annihilation") then
+		-- --score_display = time
+		-- --requires_vp_ticker = false
+		-- --entity_replacements = {{original = "victory_point", replacement = "territory_point_mp",}}
+		-- --import("WinConditions/annihilate.scar")
+	-- elseif string.find(fe_name, "none") then
+		-- --import("WinConditions/none.scar")
+	-- elseif string.find(fe_name, "victory points") then
+		-- g_victoryPoints = 500
+		-- victoryPoints = tonumber(string.match(string.sub(fe_name, string.find(fe_name, "vp:"), string.len(fe_name)),"%d+")) or 500
+		-- --score_display = vp_ticker
+		-- --requires_vp_ticker = true
+		-- --VPTickerData.start_points = victoryPoints
+		-- --start_points = victoryPoints
+		-- --_G["Setup_GetWinConditionOption"] = function() return g_victoryPoints end
+		-- --import("WinConditions/victorypointplusannihilate.scar")
+	-- end
+end
+
+Scar_AddInit(Init_Mod)

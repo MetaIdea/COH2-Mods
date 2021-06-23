@@ -1,0 +1,156 @@
+name = "ai_boost_mod_victory_points"
+scar_file = "data:scar/winconditions/victorypointplusannihilate_mod.scar"
+fe_name = " AI Boost Mod (victory points)"
+fe_priority = 0
+score_display = vp_ticker
+show_time = true
+requires_vp_ticker = true
+
+fe_option_name = "Option"
+
+options = {
+	{
+		fe_name = 'host-vp:250',
+		value = 250,
+	},
+	{
+		fe_name = 'host-vp:500',
+		value = 500,
+	},
+	{
+		fe_name = 'host-vp:1000',
+		value = 1000,
+	},
+	{
+		fe_name = 'host-vp:250-popcap:125',
+		value = 251,
+	},
+	{
+		fe_name = 'host-vp:500-popcap:125',
+		value = 501,
+	},
+	{
+		fe_name = 'host-vp:1000-popcap:125',
+		value = 1001,
+	},
+	{
+		fe_name = 'host-vp:250-popcap:150',
+		value = 252,
+	},
+	{
+		fe_name = 'host-vp:500-popcap:150',
+		value = 502,
+	},
+	{
+		fe_name = 'host-vp:1000-popcap:150',
+		value = 1002,
+	},
+	{
+		fe_name = 'host-vp:250-popcap:200',
+		value = 253,
+	},
+	{
+		fe_name = 'host-vp:500-popcap:200',
+		value = 503,
+	},
+	{
+		fe_name = 'host-vp:1000-popcap:200',
+		value = 1003,
+	},
+	{
+		fe_name = 'vote-vp:250',
+		value = 254,
+	},
+	{
+		fe_name = 'vote-vp:500',
+		value = 504,
+	},
+	{
+		fe_name = 'vote-vp:1000',
+		value = 1004,
+	},
+	{
+		fe_name = 'vote-vp:250-popcap:125',
+		value = 255,
+	},
+	{
+		fe_name = 'vote-vp:500-popcap:125',
+		value = 505,
+	},
+	{
+		fe_name = 'vote-vp:1000-popcap:125',
+		value = 1005,
+	},
+	{
+		fe_name = 'vote-vp:250-popcap:150',
+		value = 256,
+	},
+	{
+		fe_name = 'vote-vp:500-popcap:150',
+		value = 506,
+	},
+	{
+		fe_name = 'vote-vp:1000-popcap:150',
+		value = 1006,
+	},
+	{
+		fe_name = 'vote-vp:250-popcap:200',
+		value = 257,
+	},
+	{
+		fe_name = 'vote-vp:500-popcap:200',
+		value = 507,
+	},
+	{
+		fe_name = 'vote-vp:1000-popcap:200',
+		value = 1007,
+	},
+	{
+		fe_name = 'auto-vp:250',
+		value = 258,
+	},
+	{
+		fe_name = 'auto-vp:500',
+		value = 508,
+	},
+	{
+		fe_name = 'auto-vp:1000',
+		value = 1008,
+	},
+	{
+		fe_name = 'auto-vp:250-popcap:125',
+		value = 259,
+	},
+	{
+		fe_name = 'auto-vp:500-popcap:125',
+		value = 509,
+	},
+	{
+		fe_name = 'auto-vp:1000-popcap:125',
+		value = 1009,
+	},
+	{
+		fe_name = 'auto-vp:250-popcap:150',
+		value = 260,
+	},
+	{
+		fe_name = 'auto-vp:500-popcap:150',
+		value = 510,
+	},
+	{
+		fe_name = 'auto-vp:1000-popcap:150',
+		value = 1010,
+	},
+	{
+		fe_name = 'auto-vp:250-popcap:200',
+		value = 261,
+	},
+	{
+		fe_name = 'auto-vp:500-popcap:200',
+		value = 511,
+	},
+	{
+		fe_name = 'auto-vp:1000-popcap:200',
+		value = 1011,
+	},
+}

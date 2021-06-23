@@ -1,0 +1,3 @@
+import("WinConditions/annihilate.scar")
+import("WinConditions/mod/lib.scar")
+import("WinConditions/mod/mod.scar")

@@ -1,0 +1,268 @@
+debugmode = false
+
+g_PopulationPercentage_StartThreshold = 0.45
+g_TerritoryPointOwnagePercentage_StartThreshold = 0.3 --own 30% of all points on map
+g_TerritoryPointsCapturedPercentage_StartThreshold = 0.85
+
+g_PopulationPercentage_AiDisableThreshold = 0.3
+g_TerritoryPointOwnageRatio_AiDisableThreshold = 0.5 --so enemy owns 2x territory
+g_TerritoryPointOwnagePercentageEnemy_AiDisableThreshold = 0.8 --enemy owns 80%
+g_AveragePopulationRatio_AiDisableThreshold = 0.5 -- ~so enemy owns 2x population
+
+g_PopulationPercentage_RecoverThreshold = 0.5
+g_TerritoryPointOwnageRatio_RecoverThreshold = 1.0 --equal distribution
+g_AveragePopulationRatio_RecoverThreshold = 1.0 --equal distribution
+g_TerritoryPointOwnagePercentageHuman_RecoverThreshold = 0.7 --human owns 70% 
+
+g_ai_enabled = true
+
+function Init_Mod()
+	EvaluateOptions()
+	Init_AntiAIDefeatSafety()
+	if debugmode then
+		FOW_RevealAll()
+	end
+	ShowMessage("Mod Init", 20)
+end
+
+function Init_AntiAIDefeatSafety()
+	humanTeam = GetFirstHumanPlayerTeam()
+	aiTeam = Team_GetEnemyTeam(humanTeam)
+	Rule_AddInterval(AntiAIDefeatSafetyCoroutineTrigger, 10)
+end
+
+function AntiAIDefeatSafetyCoroutineTrigger()
+	if CheckAllTerritoryPointsCaptured() or (GetTerritoryPointsCapturedPercentage() >= g_TerritoryPointsCapturedPercentage_StartThreshold and (GetAveragePopulationPercentage(humanTeam) >= g_PopulationPercentage_StartThreshold or GetTerritoryPointOwnagePercentage(humanTeam) >= g_TerritoryPointOwnagePercentage_StartThreshold)) then
+		Rule_RemoveMe()
+		Rule_AddInterval(AntiAIDefeatSafetyCoroutine, 10)
+		if debugmode then
+			ShowMessage("Anti AI defeat safety check now enabled !", 7)
+		end
+	end
+end
+
+function AntiAIDefeatSafetyCheck()
+	if (((GetAveragePopulationPercentage(humanTeam) <= g_PopulationPercentage_AiDisableThreshold) 
+		or (GetAveragePopulationRatio(humanTeam) <= g_AveragePopulationRatio_AiDisableThreshold)) 
+		and (GetTerritoryPointOwnageRatio(humanTeam) <= g_TerritoryPointOwnageRatio_AiDisableThreshold))
+		or (GetTerritoryPointOwnagePercentage(aiTeam) >= g_TerritoryPointOwnagePercentageEnemy_AiDisableThreshold)
+	then
+		return true
+	else
+		return false
+	end
+end
+
+function RecoverCheck()
+	if (((GetAveragePopulationPercentage(humanTeam) >= g_PopulationPercentage_RecoverThreshold) 
+		or (GetAveragePopulationRatio(humanTeam) >= g_AveragePopulationRatio_RecoverThreshold)) 
+		and (GetTerritoryPointOwnageRatio(humanTeam) >= g_TerritoryPointOwnageRatio_RecoverThreshold))
+		or (GetTerritoryPointOwnagePercentage(humanTeam) >= g_TerritoryPointOwnagePercentageHuman_RecoverThreshold) 
+	then
+		return true
+	else
+		return false
+	end
+end
+
+function AntiAIDefeatSafetyCoroutine()
+	if g_ai_enabled and AntiAIDefeatSafetyCheck() and not RecoverCheck() then
+		if debugmode then
+			ShowMessage("AI DISABLED\n\n" .. "GetAveragePopulationPercentage: " .. GetAveragePopulationPercentage(humanTeam) .. " <= " .. g_PopulationPercentage_AiDisableThreshold .. "\nGetAveragePopulationRatio: " .. GetAveragePopulationRatio(humanTeam) .. " <= " .. g_AveragePopulationRatio_AiDisableThreshold .. "\nGetTerritoryPointOwnageRatio: " .. GetTerritoryPointOwnageRatio(humanTeam) .. " <= " .. g_TerritoryPointOwnageRatio_AiDisableThreshold .. "\nGetTerritoryPointOwnagePercentageAI: " .. GetTerritoryPointOwnagePercentage(aiTeam) .. " >= " .. g_TerritoryPointOwnagePercentageEnemy_AiDisableThreshold, 10)
+		else
+			ShowMessage("Anti AI defeat safety triggered !", 7)
+		end
+		for i = 1, World_GetPlayerCount() do
+			local player = World_GetPlayerAt(i)
+			local team = Player_GetTeam(player)
+			if team == aiTeam and AI_IsAIPlayer(player) and AI_IsEnabled(player) then
+				AI_Enable(player, false)
+				ResourceRateTable["RT_Manpower"] = Player_GetResourceRate(player, RT_Manpower)
+				ResourceRateTable["RT_Munition"] = Player_GetResourceRate(player, RT_Munition) 
+				ResourceRateTable["RT_Fuel"] = Player_GetResourceRate(player, RT_Fuel) 
+				Modify_PlayerProductionRate(player, 0)
+				Modify_PlayerResourceRate(player, RT_Manpower, 0)
+				Modify_PlayerResourceRate(player, RT_Munition, 0)
+				Modify_PlayerResourceRate(player, RT_Fuel, 0)
+				Cmd_Retreat(Player_GetSquads(player), Player_GetStartingPosition(player))
+				Cmd_Move(Player_GetSquads(player), Player_GetStartingPosition(player))
+				g_ai_enabled = false
+			end
+		end
+	elseif not g_ai_enabled and RecoverCheck() and not AntiAIDefeatSafetyCheck() then
+		if debugmode then
+			ShowMessage("AI ENABLED\n\n" .. "GetAveragePopulationPercentage: " .. GetAveragePopulationPercentage(humanTeam) .. " >= " .. g_PopulationPercentage_RecoverThreshold .. "\nGetAveragePopulationRatio: " .. GetAveragePopulationRatio(humanTeam) .. " >= " .. g_AveragePopulationRatio_RecoverThreshold .. "\nGetTerritoryPointOwnageRatio: " .. GetTerritoryPointOwnageRatio(humanTeam) .. " >= " .. g_TerritoryPointOwnageRatio_RecoverThreshold .. "\nGetTerritoryPointOwnagePercentageHUMAN: " .. GetTerritoryPointOwnagePercentage(humanTeam) .. " >= " .. g_TerritoryPointOwnagePercentageHuman_RecoverThreshold, 10)
+		else
+			ShowMessage("Anti AI defeat safety triggered !", 7)
+		end
+		for i = 1, World_GetPlayerCount() do
+			local player = World_GetPlayerAt(i)
+			local team = Player_GetTeam(player)
+			if team == aiTeam and AI_IsAIPlayer(player) and not AI_IsEnabled(player) then
+				AI_Enable(player, true)
+				Modify_PlayerProductionRate(player, 1.0)
+				Modify_PlayerResourceRate(player, RT_Manpower, ResourceRateTable["RT_Manpower"])
+				Modify_PlayerResourceRate(player, RT_Munition, ResourceRateTable["RT_Munition"])
+				Modify_PlayerResourceRate(player, RT_Fuel, ResourceRateTable["RT_Fuel"])
+				Player_SetResource(player, RT_Manpower, GetAverageResourceOfTeam(humanTeam, RT_Manpower))		
+				Player_SetResource(player, RT_Munition, GetAverageResourceOfTeam(humanTeam, RT_Munition))	
+				Player_SetResource(player, RT_Fuel, GetAverageResourceOfTeam(humanTeam, RT_Fuel))
+				g_ai_enabled = true
+			end	
+		end
+	end
+end
+
+ResourceRateTable = {["RT_Manpower"]=1.0,["RT_Munition"]=1.0,["RT_Fuel"]=1.0,}
+
+function GetFirstHumanPlayerTeam()
+	for i = 1,World_GetPlayerCount(),1 do
+		local player = World_GetPlayerAt(i)
+		if Player_IsHuman(player) then
+			return Player_GetTeam(player)
+		end
+	end
+end
+
+function IsWinConditionBuildingUnderAttack(team) --unused
+	for i = 1,World_GetPlayerCount(),1 do
+		local player = World_GetPlayerAt(i)
+		if team == Player_GetTeam(player) then
+			local entities = Player_GetEntities(player)
+			for entityCount = 1, EGroup_CountSpawned(entities) do
+				local entity = EGroup_GetSpawnedEntityAt(entities, entityCount)
+				if (Entity_IsOfType(entity, "annihilation_condition")) and Entity_IsUnderAttack(entity, 5.0) then
+					--return Util_GetPosition(entity)
+					return true
+				end
+			end
+		end
+	end
+	return false
+end
+
+function GetAverageResourceOfTeam(team, resourceType)
+	local resources = 0
+	local playerCount = 0
+	for i = 1,World_GetPlayerCount(),1 do
+		local player = World_GetPlayerAt(i)
+		if team == Player_GetTeam(player) then
+			resources = resources + Player_GetResource(player, resourceType) 
+			playerCount = playerCount + 1
+		end
+	end
+	return resources/playerCount
+end
+
+function GetAveragePopulationPercentage(team)
+	local playerCount = 0
+	local popPercentage = 0
+	for i = 1,World_GetPlayerCount(),1 do
+		local player = World_GetPlayerAt(i)
+		if Player_GetTeam(player) == team then
+			playerCount = playerCount + 1
+			popPercentage = popPercentage + Player_GetPopulationPercentage(player)
+		end
+	end
+	return popPercentage/playerCount
+end
+
+function GetAveragePopulationRatio(team)
+	return GetAveragePopulationPercentage(team)/GetAveragePopulationPercentage(Team_GetEnemyTeam(team))
+end
+
+function GetTerritoryPointOwnageRatio(team)
+	local humanPointCount = 0
+	local enemyAIPointCount = 0
+	for i = 1, World_GetPlayerCount() do
+		local player = World_GetPlayerAt(i)
+		if team == Player_GetTeam(player) then
+			humanPointCount = humanPointCount + Player_GetNumStrategicPoints(player) + Player_GetNumVictoryPoints(player)
+			break
+		end
+	end
+	for i = 1, World_GetPlayerCount() do
+		local player = World_GetPlayerAt(i)
+		if team ~= Player_GetTeam(player) then
+			enemyAIPointCount = enemyAIPointCount + Player_GetNumStrategicPoints(player) + Player_GetNumVictoryPoints(player)	
+			break
+		end
+	end
+	if humanPointCount == 0 and enemyAIPointCount > 0 then 
+		return enemyAIPointCount
+	elseif humanPointCount > 0 and enemyAIPointCount == 0 then
+		return humanPointCount
+	elseif humanPointCount == 0 and enemyAIPointCount == 0 then
+		return 1
+	else
+		return humanPointCount/enemyAIPointCount
+	end
+end
+
+function GetTerritoryPointOwnagePercentage(team)
+	local pointCount = 0
+	for i = 1, World_GetPlayerCount() do
+		local player = World_GetPlayerAt(i)
+		if team == Player_GetTeam(player) then
+			pointCount = pointCount + Player_GetNumStrategicPoints(player) + Player_GetNumVictoryPoints(player)	
+			break
+		end
+	end
+	if pointCount == 0 then
+		return pointCount
+	else
+		return pointCount/(World_GetNumStrategicPoints()+World_GetNumVictoryPoints())
+	end
+end
+
+function CheckAllTerritoryPointsCaptured()
+	local pointCount = 0
+	team1 = Player_GetTeam(World_GetPlayerAt(1))
+	team2 = Team_GetEnemyTeam(team1)
+	for i = 1, World_GetPlayerCount() do
+		local player = World_GetPlayerAt(i)
+		if team1 == Player_GetTeam(player) then
+			pointCount = pointCount + Player_GetNumStrategicPoints(player) + Player_GetNumVictoryPoints(player)	
+			break
+		end
+	end
+	for i = 1, World_GetPlayerCount() do
+		local player = World_GetPlayerAt(i)
+		if team2 == Player_GetTeam(player) then
+			pointCount = pointCount + Player_GetNumStrategicPoints(player) + Player_GetNumVictoryPoints(player)	
+			break
+		end
+	end
+	if (pointCount > 0) and (pointCount == (World_GetNumStrategicPoints()+World_GetNumVictoryPoints())) then
+		return true
+	else 
+		return false
+	end
+end
+
+function GetTerritoryPointsCapturedPercentage()
+	local pointCount = 0
+	team1 = Player_GetTeam(World_GetPlayerAt(1))
+	team2 = Team_GetEnemyTeam(team1)
+	for i = 1, World_GetPlayerCount() do
+		local player = World_GetPlayerAt(i)
+		if team1 == Player_GetTeam(player) then
+			pointCount = pointCount + Player_GetNumStrategicPoints(player) + Player_GetNumVictoryPoints(player)	
+			break
+		end
+	end
+	for i = 1, World_GetPlayerCount() do
+		local player = World_GetPlayerAt(i)
+		if team2 == Player_GetTeam(player) then
+			pointCount = pointCount + Player_GetNumStrategicPoints(player) + Player_GetNumVictoryPoints(player)	
+			break
+		end
+	end
+	if (pointCount > 0) then
+		return (pointCount/(World_GetNumStrategicPoints()+World_GetNumVictoryPoints()))
+	else 
+		return pointCount
+	end
+end
+
+Scar_AddInit(Init_Mod)

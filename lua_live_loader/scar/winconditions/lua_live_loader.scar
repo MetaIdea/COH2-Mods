@@ -1,0 +1,125 @@
+import("ScarUtil.scar")
+import("Fatalities/Fatalities.scar")
+import("Prototype/WorldEntityCollector.scar")
+import("Prototype/SpecialAEFunctions.scar")
+
+function WCNone_GameOver(winningTeam, losingTeam)
+	if(scartype(WinConditionEndCallback) == ST_FUNCTION) then
+		WinConditionEndCallback(winningTeam)
+	else
+		World_SetTeamWin(winningTeam)
+	end
+end
+
+function WCNone_CheckSurrender()
+	local results = {}
+	for i = 1, World_GetPlayerCount() do
+		local player = World_GetPlayerAt(i)
+		local team = Player_GetTeam(player)	
+		results[team] = results[team] or { surrender_count = 0 }
+		if(Player_IsSurrendered(player)) then
+			results[team].surrender_count = results[team].surrender_count + 1
+		end
+	end
+	for team,result in pairs(results) do
+		if(result.surrender_count > 0) then
+			Rule_RemoveAll()
+			local losingTeam = team
+			local winningTeam = Team_GetEnemyTeam(losingTeam)
+			if (VPVictoryMessage) and (scartype(VPVictoryMessage) == ST_FUNCTION) then
+				if(Team_HasHuman(winningTeam)) then
+					VPVictoryMessage()
+					Event_Timer(WCNone_DelayedWin, {winningTeam = winningTeam, losingTeam = losingTeam}, 1)
+				else
+					Game_SetMode(UI_Normal)
+					WCNone_GameOver(winningTeam, losingTeam)
+				end
+			else
+				WCNone_GameOver(winningTeam, losingTeam)
+			end
+		end
+	end
+end
+
+function WCNone_DelayedWin(data)
+	if not Event_IsAnyRunning() then
+		if(scartype(WinConditionEndCallback) == ST_FUNCTION) then
+			WinConditionEndCallback(data.winningTeam)
+		else
+			Rule_RemoveAll()
+			Game_SetMode(UI_Normal)
+			Camera_SetInputEnabled(true)
+			World_SetTeamWin(data.winningTeam)
+		end
+	else
+		Event_Timer(WCNone_DelayedWin, data, 1)
+	end
+end
+
+local function init()
+	Rule_AddInterval(WCNone_CheckSurrender, 3)
+end
+
+Scar_AddInit(init)
+
+----------------MOD-----------------------
+
+live_load_file = "liveload.lua"
+live_log_file = "livelog.txt"
+--CONSOLE_CODE = [[print("test")]]
+
+function Init_Mod()
+	AddButtons()
+	_G["_ALERT"] = function(errormsg) Game_TextTitleFade("ERROR: " .. errormsg, 0, 7, 0) end
+end
+
+-- function _ALERT(msg)
+	-- Game_TextTitleFade("ERROR: " .. msg, 0, 7, 0)
+-- end
+
+function ExecuteLiveLoadCode()
+	loadfile(live_load_file)()
+	--dofile(live_load_file)
+	--loadstring(loadfile(live_load_file))()
+end
+
+function ExecuteConsoleCode()
+	Scar_DebugConsoleExecute([[loadfile("]] .. live_load_file .. [[")()]])
+	--Scar_DebugConsoleExecute([[dofile("]] .. live_load_file .. [[")()]])
+	--loadfile(live_load_file)()
+	--Scar_DebugConsoleExecute(CONSOLE_CODE)
+end
+
+function Msg(text, displayTime)
+	if not displayTime then displayTime = 10 end
+	-- if not text or text == "" then
+		-- text = Util_CreateLocString("")
+	-- elseif scartype(text) == ST_STRING then
+		-- text = Util_CreateLocString(text)
+	-- end
+	Game_TextTitleFade(text, 0, displayTime, 0)
+end
+
+logtextall = ""
+function Log(logtext)
+	logtextall = logtextall .. logtext .. "\n"
+	PersistentMode_SerializeResults("userdata:" .. live_log_file, tostring(logtextall))
+end
+
+function dumpenv()
+	local dump_ = ""
+	for k,v in pairs(_G) do 
+		dump_ = dump_ .. k .. " " .. v .. "\n" 
+	end
+	PersistentMode_SerializeResults("userdata:" .. live_log_file, dump_)
+end
+
+function AddButtons()
+	UI_PanelAdd("", "dialog", 4, 60)
+	UI_ButtonAdd("", "button", 0, 64, 40, 40, "ExecuteLiveLoadCode", true, "Icons_events_event_cue_upgrade", BIS_Icon, "Liveload scar/lua", Loc_Empty())
+	
+	UI_PanelAdd("", "dialog", 4, 100)
+	UI_ButtonAdd("", "button", 0, 104, 40, 40, "ExecuteConsoleCode", true, "Icons_events_event_cue_upgrade", BIS_Icon, "Liveload scar/lua console", Loc_Empty())
+end
+
+Scar_AddInit(Init_Mod)

@@ -1,0 +1,128 @@
+--OPTIONS PARSING--
+function GetOptionsString()
+	--only for creation: local Setup_GetVictoryPointTickerOption() = function() return 1 end
+	modOption 		= {"", "zoom", "map revealed"}
+	popCaps 		= {"standard", "125", "150", "200"}
+	victoryPoints 	= {"250", "500", "1000"}
+	local shiftVal 	= 0
+	if tonumber(string.match(Setup_GetWinConditionOption(),"%d+")) >= 250 then
+		optionIndex 	= 250
+		gamemodes 		= {"victory points"}
+	else
+		optionIndex 	= 1	
+		gamemodes 		= {"annihilation"}	--, "victory points", "none"}
+	end
+	optionsString = "options = {"
+	for m=1,#modOption,1 do
+		for i=1,#gamemodes,1 do
+			for j=1,#popCaps,1 do
+				if not (gamemodes[i] == "victory points") then
+					if gamemodes[i] == "annihilation" and popCaps[j] == "standard" then
+						if modOption[m] == "" then
+							optionsString = optionsString .. "\n\t{\n\t\tdefault = true,\n\t\tfe_name = '" .. "',\n\t\tvalue = " .. optionIndex .. ",\n\t},"
+						else
+							optionsString = optionsString .. "\n\t{\n\t\tfe_name = '" .. "-popcap:" .. popCaps[j] .. "-option:" .. modOption[m] .. "',\n\t\tvalue = " .. optionIndex .. ",\n\t},"	
+						end
+					else
+						if modOption[m] == "" then
+							optionsString = optionsString .. "\n\t{\n\t\tfe_name = '" .. "-popcap:" .. popCaps[j] .. "',\n\t\tvalue = " .. optionIndex .. ",\n\t},"	
+						else
+							optionsString = optionsString .. "\n\t{\n\t\tfe_name = '" .. "-popcap:" .. popCaps[j] .. "-option:" .. modOption[m] .. "',\n\t\tvalue = " .. optionIndex .. ",\n\t},"	
+						end
+					end
+					optionIndex = optionIndex + 1
+				else
+					for k=1,#victoryPoints,1 do
+						optionIndex = victoryPoints[k] + shiftVal
+						if modOption[m] == "" then
+							optionsString = optionsString .. "\n\t{\n\t\tfe_name = '" .. "-vp:" .. victoryPoints[k] .. "-popcap:" .. popCaps[j] .. "',\n\t\tvalue = " .. optionIndex .. ",\n\t},"	
+						else
+							optionsString = optionsString .. "\n\t{\n\t\tfe_name = '" .. "-vp:" .. victoryPoints[k] .. "-popcap:" .. popCaps[j] .. "-option:" .. modOption[m] .. "',\n\t\tvalue = " .. optionIndex .. ",\n\t},"	
+						end
+						if optionIndex >= 1000 then
+							shiftVal = shiftVal + 1
+						end
+					end
+				end
+			end		
+		end
+	end
+	optionsString = optionsString .. "\n}"
+	optionsString = string.gsub(optionsString,"-popcap:standard","")
+	return optionsString
+end
+--print(GetOptionsString())
+
+function EvaluateOptions()
+	loadstring(GetOptionsString())()
+	local optionindex = tonumber(string.match(Setup_GetWinConditionOption(),"%d+"))
+	local fe_name = ""
+	for i=1,#options,1 do
+		if tonumber(options[i].value) == optionindex then
+			fe_name = options[i]["fe_name"]
+			break
+		end
+	end
+	
+	if string.find(fe_name, "popcap:") then
+		local popCap = tonumber(string.match(string.sub(fe_name, string.find(fe_name, "popcap:"), string.len(fe_name)),"%d+")) or 100
+		for i = 1,World_GetPlayerCount(),1 do
+			local player = World_GetPlayerAt(i)
+			Player_SetPopCapOverride(player, popCap)	
+		end
+	end
+	if string.find(fe_name, "zoom") then
+		--Camera_SetDefault(300)
+		Camera_SetTuningValue(TV_DistMin, 1)
+		Camera_SetTuningValue(TV_DistMax, 75)
+	end
+	if string.find(fe_name, "map revealed") then
+		FOW_RevealAll()
+	end
+	
+	if string.find(fe_name, "vp:") then --=VP mode, apply rounding
+		local vp_limit = tonumber(string.match(string.sub(fe_name, string.find(fe_name, "vp:"), string.len(fe_name)),"%d+")) or 250
+		WinWarning_SetMaxTickers(vp_limit, vp_limit) 
+		WinWarning_SetTickers(vp_limit, vp_limit)
+	end
+	
+	-- if string.find(fe_name, "annihilation") then
+		-- --score_display = time
+		-- --requires_vp_ticker = false
+		-- --entity_replacements = {{original = "victory_point", replacement = "territory_point_mp",}}
+		-- --import("WinConditions/annihilate.scar")
+	-- elseif string.find(fe_name, "none") then
+		-- --import("WinConditions/none.scar")
+	-- elseif string.find(fe_name, "victory points") then
+		-- g_victoryPoints = 500
+		-- victoryPoints = tonumber(string.match(string.sub(fe_name, string.find(fe_name, "vp:"), string.len(fe_name)),"%d+")) or 500
+		-- --score_display = vp_ticker
+		-- --requires_vp_ticker = true
+		-- --VPTickerData.start_points = victoryPoints
+		-- --start_points = victoryPoints
+		-- --_G["Setup_GetWinConditionOption"] = function() return g_victoryPoints end
+		-- --import("WinConditions/victorypointplusannihilate.scar")
+	-- end
+end
+
+--HELPER--
+function ShowMessage(text, displayTime)
+	-- if not text or text == "" then
+		-- text = Util_CreateLocString("")
+	-- elseif scartype(text) == ST_STRING then
+		-- text = Util_CreateLocString(text)
+	-- end
+	Game_TextTitleFade(text, 0, displayTime, 0)
+end
+
+logtextall = ""
+function Log(logtext)
+	logtextall = logtextall .. tostring(logtext)
+	PersistentMode_SerializeResults("userdata:__log.txt", logtextall)
+end
+
+function AddButton(callback,pos_x,pos_y)
+	if not pos_x or not pos_y then pos_x = 0 pos_y = 64 end
+	UI_PanelAdd("", "dialog", 4, 60)
+	UI_ButtonAdd("", "button", pos_x, pos_y, 40, 40, callback, true, "Icons_events_event_cue_upgrade", BIS_Icon, "Button" .. math.random(99999), Loc_Empty())
+end
